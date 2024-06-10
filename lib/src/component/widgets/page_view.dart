@@ -1,10 +1,10 @@
 part of 'package:over_scroll_views/src/assembly/widgets/page_view.dart';
 
-class NestedPageView extends PageView {
+class NestedMaterialPageView extends PageView {
   /// 是否缓存可滚动页面，不缓存可能导致页面在嵌套滚动时被销毁导致手势事件丢失
   final bool wantKeepAlive;
 
-  NestedPageView({
+  NestedMaterialPageView({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -22,7 +22,7 @@ class NestedPageView extends PageView {
     this.wantKeepAlive = true,
   });
 
-  NestedPageView.builder({
+  NestedMaterialPageView.builder({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -42,7 +42,7 @@ class NestedPageView extends PageView {
     this.wantKeepAlive = true,
   }) : super.builder();
 
-  const NestedPageView.custom({
+  const NestedMaterialPageView.custom({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -169,8 +169,8 @@ class _NestedPageViewState extends _PageViewState {
             _handleNotification(context, notification);
       },
       child: WrapperKeepAlive(
-        wantKeepAlive: (widget as NestedPageView).wantKeepAlive,
-        child: OverscrollScrollable.from(scrollable),
+        wantKeepAlive: (widget as NestedMaterialPageView).wantKeepAlive,
+        child: OverscrolMateriallScrollable.from(scrollable),
       ),
     );
   }

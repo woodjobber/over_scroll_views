@@ -1,7 +1,7 @@
 part of 'package:over_scroll_views/src/assembly/widgets/scrollable.dart';
 
-class OverscrollScrollable extends Scrollable {
-  const OverscrollScrollable({
+class OverscrolMateriallScrollable extends Scrollable {
+  const OverscrolMateriallScrollable({
     super.key,
     super.axisDirection,
     super.controller,
@@ -34,7 +34,7 @@ class OverscrollScrollable extends Scrollable {
   }
 
   /// 将 Scrollable 转换为 OverscrollScrollable
-  OverscrollScrollable.from(Scrollable scrollable)
+  OverscrolMateriallScrollable.from(Scrollable scrollable)
       : super(
           key: scrollable.key,
           axisDirection: scrollable.axisDirection,

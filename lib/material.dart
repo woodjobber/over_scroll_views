@@ -1,4 +1,4 @@
 library material;
 
-export 'src/assembly/material/tabs.dart' show NestedTabBarView;
+export 'src/assembly/material/tabs.dart' show NestedMaterialTabBarView;
 export 'widgets.dart';
