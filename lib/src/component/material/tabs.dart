@@ -1,10 +1,14 @@
-part of 'package:over_scroll_views/src/assembly/material/tabs.dart';
+import 'package:flutter/material.dart';
 
-class NestedMaterialTabBarView extends TabBarView {
+import '../../flutter/material/tabs.dart';
+import '../../flutter/widgets/page_view.dart';
+import '../widgets/page_view.dart';
+
+class NestedMTTabBarView extends MTTabBarView {
   /// 是否缓存可滚动页面，不缓存可能导致页面在嵌套滚动时被销毁导致手势事件丢失
   final bool wantKeepAlive;
 
-  const NestedMaterialTabBarView({
+  const NestedMTTabBarView({
     super.key,
     required super.children,
     super.controller,
@@ -16,24 +20,24 @@ class NestedMaterialTabBarView extends TabBarView {
   });
 
   @override
-  State<TabBarView> createState() => _NestedTabBarViewState();
+  State<MTTabBarView> createState() => NestedTabBarViewState();
 }
 
-class _NestedTabBarViewState extends _TabBarViewState {
+class NestedTabBarViewState extends MTTabBarViewState {
   @override
   Widget build(BuildContext context) {
     final notificationListener =
         super.build(context) as NotificationListener<ScrollNotification>;
-    final flutterPageView = notificationListener.child as PageView;
+    final flutterPageView = notificationListener.child as MTPageView;
     return NotificationListener<ScrollNotification>(
       onNotification: notificationListener.onNotification,
-      child: NestedMaterialPageView.custom(
+      child: NestedMTPageView.custom(
         dragStartBehavior: flutterPageView.dragStartBehavior,
         clipBehavior: flutterPageView.clipBehavior,
         controller: flutterPageView.controller,
         physics: flutterPageView.physics,
         childrenDelegate: flutterPageView.childrenDelegate,
-        wantKeepAlive: (widget as NestedMaterialTabBarView).wantKeepAlive,
+        wantKeepAlive: (widget as NestedMTTabBarView).wantKeepAlive,
       ),
     );
   }

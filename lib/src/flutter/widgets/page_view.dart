@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-part of 'package:over_scroll_views/src/assembly/widgets/page_view.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:over_scroll_views/src/flutter/widgets/scrollable.dart';
 
-class _ForceImplicitScrollPhysics extends ScrollPhysics {
-  const _ForceImplicitScrollPhysics({
+class _MTForceImplicitScrollPhysics extends ScrollPhysics {
+  const _MTForceImplicitScrollPhysics({
     required this.allowImplicitScrolling,
     super.parent,
   });
 
   @override
-  _ForceImplicitScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _ForceImplicitScrollPhysics(
+  _MTForceImplicitScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _MTForceImplicitScrollPhysics(
       allowImplicitScrolling: allowImplicitScrolling,
       parent: buildParent(ancestor),
     );
@@ -30,18 +33,18 @@ const PageScrollPhysics _kPagePhysics = PageScrollPhysics();
 ///
 /// You can use a [PageController] to control which page is visible in the view.
 /// In addition to being able to control the pixel offset of the content inside
-/// the [PageView], a [PageController] also lets you control the offset in terms
+/// the [MTPageView], a [PageController] also lets you control the offset in terms
 /// of pages, which are increments of the viewport size.
 ///
 /// The [PageController] can also be used to control the
 /// [PageController.initialPage], which determines which page is shown when the
-/// [PageView] is first constructed, and the [PageController.viewportFraction],
+/// [MTPageView] is first constructed, and the [PageController.viewportFraction],
 /// which determines the size of the pages as a fraction of the viewport size.
 ///
 /// {@youtube 560 315 https://www.youtube.com/watch?v=J1gE9xvph-A}
 ///
 /// {@tool dartpad}
-/// Here is an example of [PageView]. It creates a centered [Text] in each of the three pages
+/// Here is an example of [MTPageView]. It creates a centered [Text] in each of the three pages
 /// which scroll horizontally.
 ///
 /// ** See code in examples/api/lib/widgets/page_view/page_view.0.dart **
@@ -50,7 +53,7 @@ const PageScrollPhysics _kPagePhysics = PageScrollPhysics();
 /// ## Persisting the scroll position during a session
 ///
 /// Scroll views attempt to persist their scroll position using [PageStorage].
-/// For a [PageView], this can be disabled by setting [PageController.keepPage]
+/// For a [MTPageView], this can be disabled by setting [PageController.keepPage]
 /// to false on the [controller]. If it is enabled, using a [PageStorageKey] for
 /// the [key] of this widget is recommended to help disambiguate different
 /// scroll views from each other.
@@ -63,7 +66,7 @@ const PageScrollPhysics _kPagePhysics = PageScrollPhysics();
 ///  * [GridView], for a scrollable grid of boxes.
 ///  * [ScrollNotification] and [NotificationListener], which can be used to watch
 ///    the scroll position without using a [ScrollController].
-class PageView extends StatefulWidget {
+class MTPageView extends StatefulWidget {
   /// Creates a scrollable list that works page by page from an explicit [List]
   /// of widgets.
   ///
@@ -77,12 +80,12 @@ class PageView extends StatefulWidget {
   /// See the documentation at [SliverChildListDelegate.children] for more details.
   ///
   /// {@template flutter.widgets.PageView.allowImplicitScrolling}
-  /// If [allowImplicitScrolling] is true, the [PageView] will participate in
+  /// If [allowImplicitScrolling] is true, the [MTPageView] will participate in
   /// accessibility scrolling more like a [ListView], where implicit scroll
   /// actions will move to the next page rather than into the contents of the
-  /// [PageView].
+  /// [MTPageView].
   /// {@endtemplate}
-  PageView({
+  MTPageView({
     super.key,
     this.scrollDirection = Axis.horizontal,
     this.reverse = false,
@@ -106,7 +109,7 @@ class PageView extends StatefulWidget {
   /// number of children because the builder is called only for those children
   /// that are actually visible.
   ///
-  /// Providing a non-null [itemCount] lets the [PageView] compute the maximum
+  /// Providing a non-null [itemCount] lets the [MTPageView] compute the maximum
   /// scroll extent.
   ///
   /// [itemBuilder] will be called only with indices greater than or equal to
@@ -124,7 +127,7 @@ class PageView extends StatefulWidget {
   /// {@endtemplate}
   ///
   /// {@macro flutter.widgets.PageView.allowImplicitScrolling}
-  PageView.builder({
+  MTPageView.builder({
     super.key,
     this.scrollDirection = Axis.horizontal,
     this.reverse = false,
@@ -151,14 +154,14 @@ class PageView extends StatefulWidget {
   /// model.
   ///
   /// {@tool dartpad}
-  /// This example shows a [PageView] that uses a custom [SliverChildBuilderDelegate] to support child
+  /// This example shows a [MTPageView] that uses a custom [SliverChildBuilderDelegate] to support child
   /// reordering.
   ///
   /// ** See code in examples/api/lib/widgets/page_view/page_view.1.dart **
   /// {@end-tool}
   ///
   /// {@macro flutter.widgets.PageView.allowImplicitScrolling}
-  const PageView.custom({
+  const MTPageView.custom({
     super.key,
     this.scrollDirection = Axis.horizontal,
     this.reverse = false,
@@ -242,10 +245,10 @@ class PageView extends StatefulWidget {
   /// Called whenever the page in the center of the viewport changes.
   final ValueChanged<int>? onPageChanged;
 
-  /// A delegate that provides the children for the [PageView].
+  /// A delegate that provides the children for the [MTPageView].
   ///
   /// The [PageView.custom] constructor lets you specify this delegate
-  /// explicitly. The [PageView] and [PageView.builder] constructors create a
+  /// explicitly. The [MTPageView] and [PageView.builder] constructors create a
   /// [childrenDelegate] that wraps the given [List] and [IndexedWidgetBuilder],
   /// respectively.
   final SliverChildDelegate childrenDelegate;
@@ -281,38 +284,38 @@ class PageView extends StatefulWidget {
   final bool padEnds;
 
   @override
-  State<PageView> createState() => _PageViewState();
+  State<MTPageView> createState() => MTPageViewState();
 }
 
-class _PageViewState extends State<PageView> {
+class MTPageViewState extends State<MTPageView> {
   int _lastReportedPage = 0;
 
-  late PageController _controller;
+  late PageController controller;
 
   @override
   void initState() {
     super.initState();
     _initController();
-    _lastReportedPage = _controller.initialPage;
+    _lastReportedPage = controller.initialPage;
   }
 
   @override
   void dispose() {
     if (widget.controller == null) {
-      _controller.dispose();
+      controller.dispose();
     }
     super.dispose();
   }
 
   void _initController() {
-    _controller = widget.controller ?? PageController();
+    controller = widget.controller ?? PageController();
   }
 
   @override
-  void didUpdateWidget(PageView oldWidget) {
+  void didUpdateWidget(MTPageView oldWidget) {
     if (oldWidget.controller != widget.controller) {
       if (oldWidget.controller == null) {
-        _controller.dispose();
+        controller.dispose();
       }
       _initController();
     }
@@ -337,7 +340,7 @@ class _PageViewState extends State<PageView> {
   @override
   Widget build(BuildContext context) {
     final AxisDirection axisDirection = _getDirection(context);
-    final ScrollPhysics physics = _ForceImplicitScrollPhysics(
+    final ScrollPhysics physics = _MTForceImplicitScrollPhysics(
       allowImplicitScrolling: widget.allowImplicitScrolling,
     ).applyTo(
       widget.pageSnapping
@@ -360,10 +363,10 @@ class _PageViewState extends State<PageView> {
         }
         return false;
       },
-      child: Scrollable(
+      child: MTScrollable(
         dragStartBehavior: widget.dragStartBehavior,
         axisDirection: axisDirection,
-        controller: _controller,
+        controller: controller,
         physics: physics,
         restorationId: widget.restorationId,
         scrollBehavior: widget.scrollBehavior ??
@@ -380,7 +383,7 @@ class _PageViewState extends State<PageView> {
             clipBehavior: widget.clipBehavior,
             slivers: <Widget>[
               SliverFillViewport(
-                viewportFraction: _controller.viewportFraction,
+                viewportFraction: controller.viewportFraction,
                 delegate: widget.childrenDelegate,
                 padEnds: widget.padEnds,
               ),
@@ -399,7 +402,7 @@ class _PageViewState extends State<PageView> {
     description.add(
         FlagProperty('reverse', value: widget.reverse, ifTrue: 'reversed'));
     description.add(DiagnosticsProperty<PageController>(
-        'controller', _controller,
+        'controller', controller,
         showName: false));
     description.add(DiagnosticsProperty<ScrollPhysics>(
         'physics', widget.physics,

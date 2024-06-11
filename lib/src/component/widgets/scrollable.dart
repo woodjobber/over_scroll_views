@@ -1,7 +1,13 @@
-part of 'package:over_scroll_views/src/assembly/widgets/scrollable.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 
-class OverscrolMateriallScrollable extends Scrollable {
-  const OverscrolMateriallScrollable({
+import '../../flutter/widgets/scrollable.dart';
+import '../../flutter/widgets/scrollable_helpers.dart';
+import '../../nested_scroll_notification.dart';
+import '../../overscroll_gestures.dart';
+
+class OverscrollMTScrollable extends MTScrollable {
+  const OverscrollMTScrollable({
     super.key,
     super.axisDirection,
     super.controller,
@@ -16,8 +22,8 @@ class OverscrolMateriallScrollable extends Scrollable {
     super.clipBehavior,
   });
 
-  static ScrollIncrementCalculator? _getScrollIncrementCalculator(
-    Scrollable scrollable,
+  static MTScrollIncrementCalculator? _getScrollIncrementCalculator(
+    MTScrollable scrollable,
   ) {
     final incrementCalculator = scrollable.incrementCalculator;
     if (incrementCalculator == null) {
@@ -25,16 +31,16 @@ class OverscrolMateriallScrollable extends Scrollable {
     }
     return (details) {
       return incrementCalculator(
-        ScrollIncrementDetails(
+        MTScrollIncrementDetails(
           metrics: details.metrics,
-          type: ScrollIncrementType.values[details.type.index],
+          type: MTScrollIncrementType.values[details.type.index],
         ),
       );
     };
   }
 
   /// 将 Scrollable 转换为 OverscrollScrollable
-  OverscrolMateriallScrollable.from(Scrollable scrollable)
+  OverscrollMTScrollable.from(MTScrollable scrollable)
       : super(
           key: scrollable.key,
           axisDirection: scrollable.axisDirection,
@@ -51,10 +57,10 @@ class OverscrolMateriallScrollable extends Scrollable {
         );
 
   @override
-  ScrollableState createState() => _OverscrollScrollableState();
+  MTScrollableState createState() => _OverscrollScrollableState();
 }
 
-class _OverscrollScrollableState extends ScrollableState {
+class _OverscrollScrollableState extends MTScrollableState {
   /// 是否已经滚动到边界
   bool _overscroll = false;
 
@@ -85,8 +91,8 @@ class _OverscrollScrollableState extends ScrollableState {
   }
 
   @override
-  set _gestureRecognizers(value) {
-    super._gestureRecognizers = value.map((key, value) {
+  set gestureRecognizers(value) {
+    super.gestureRecognizers = value.map((key, value) {
       if (key == VerticalDragGestureRecognizer) {
         return MapEntry(
           OverscrollVerticalDragGestureRecognizer,

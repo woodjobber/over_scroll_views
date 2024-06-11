@@ -1,10 +1,16 @@
-part of 'package:over_scroll_views/src/assembly/widgets/page_view.dart';
+import 'package:flutter/material.dart';
+import 'package:over_scroll_views/src/component/widgets/scrollable.dart';
 
-class NestedMaterialPageView extends PageView {
+import '../../flutter/widgets/page_view.dart';
+import '../../flutter/widgets/scrollable.dart';
+import '../../nested_scroll_notification.dart';
+import '../../wrapper_keep_alive.dart';
+
+class NestedMTPageView extends MTPageView {
   /// 是否缓存可滚动页面，不缓存可能导致页面在嵌套滚动时被销毁导致手势事件丢失
   final bool wantKeepAlive;
 
-  NestedMaterialPageView({
+  NestedMTPageView({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -22,7 +28,7 @@ class NestedMaterialPageView extends PageView {
     this.wantKeepAlive = true,
   });
 
-  NestedMaterialPageView.builder({
+  NestedMTPageView.builder({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -42,7 +48,7 @@ class NestedMaterialPageView extends PageView {
     this.wantKeepAlive = true,
   }) : super.builder();
 
-  const NestedMaterialPageView.custom({
+  const NestedMTPageView.custom({
     super.key,
     super.scrollDirection,
     super.reverse,
@@ -61,10 +67,10 @@ class NestedMaterialPageView extends PageView {
   }) : super.custom();
 
   @override
-  State<PageView> createState() => _NestedPageViewState();
+  State<MTPageView> createState() => _NestedPageViewState();
 }
 
-class _NestedPageViewState extends _PageViewState {
+class _NestedPageViewState extends MTPageViewState {
   bool? _ignoreOverscroll;
   ScrollDragController? _dragController;
 
@@ -79,7 +85,7 @@ class _NestedPageViewState extends _PageViewState {
     }
 
     // 获取可滚动组件当前位置信息
-    final position = _controller.position;
+    final position = controller.position;
 
     // 当前不允许滚动
     if (!position.physics.shouldAcceptUserOffset(position)) {
@@ -162,15 +168,15 @@ class _NestedPageViewState extends _PageViewState {
   Widget build(BuildContext context) {
     final notificationListener =
         super.build(context) as NotificationListener<ScrollNotification>;
-    final scrollable = notificationListener.child as Scrollable;
+    final scrollable = notificationListener.child as MTScrollable;
     return NotificationListener<ScrollNotification>(
       onNotification: (ScrollNotification notification) {
         return notificationListener.onNotification!(notification) ||
             _handleNotification(context, notification);
       },
       child: WrapperKeepAlive(
-        wantKeepAlive: (widget as NestedMaterialPageView).wantKeepAlive,
-        child: OverscrolMateriallScrollable.from(scrollable),
+        wantKeepAlive: (widget as NestedMTPageView).wantKeepAlive,
+        child: OverscrollMTScrollable.from(scrollable),
       ),
     );
   }

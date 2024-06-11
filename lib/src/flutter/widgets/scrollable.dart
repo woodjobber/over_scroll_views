@@ -2,16 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-part of 'package:over_scroll_views/src/assembly/widgets/scrollable.dart';
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:over_scroll_views/src/flutter/widgets/scrollable_helpers.dart';
 
-/// Signature used by [Scrollable] to build the viewport through which the
+/// Signature used by [MTScrollable] to build the viewport through which the
 /// scrollable content is displayed.
-typedef ViewportBuilder = Widget Function(
+typedef MTViewportBuilder = Widget Function(
     BuildContext context, ViewportOffset position);
 
-/// Signature used by [TwoDimensionalScrollable] to build the viewport through
+/// Signature used by [MTTwoDimensionalScrollable] to build the viewport through
 /// which the scrollable content is displayed.
-typedef TwoDimensionalViewportBuilder = Widget Function(BuildContext context,
+typedef MTTwoDimensionalViewportBuilder = Widget Function(BuildContext context,
     ViewportOffset verticalPosition, ViewportOffset horizontalPosition);
 
 // The return type of _performEnsureVisible.
@@ -19,22 +27,22 @@ typedef TwoDimensionalViewportBuilder = Widget Function(BuildContext context,
 // The list of futures represents each pending ScrollPosition call to
 // ensureVisible. The returned ScrollableState's context is used to find the
 // next potential ancestor Scrollable.
-typedef _EnsureVisibleResults = (List<Future<void>>, ScrollableState);
+typedef _MTEnsureVisibleResults = (List<Future<void>>, MTScrollableState);
 
 /// A widget that manages scrolling in one dimension and informs the [Viewport]
 /// through which the content is viewed.
 ///
-/// [Scrollable] implements the interaction model for a scrollable widget,
+/// [MTScrollable] implements the interaction model for a scrollable widget,
 /// including gesture recognition, but does not have an opinion about how the
 /// viewport, which actually displays the children, is constructed.
 ///
-/// It's rare to construct a [Scrollable] directly. Instead, consider [ListView]
+/// It's rare to construct a [MTScrollable] directly. Instead, consider [ListView]
 /// or [GridView], which combine scrolling, viewporting, and a layout model. To
 /// combine layout models (or to use a custom layout mode), consider using
 /// [CustomScrollView].
 ///
-/// The static [Scrollable.of] and [Scrollable.ensureVisible] functions are
-/// often used to interact with the [Scrollable] widget inside a [ListView] or
+/// The static [MTScrollable.of] and [MTScrollable.ensureVisible] functions are
+/// often used to interact with the [MTScrollable] widget inside a [ListView] or
 /// a [GridView].
 ///
 /// To further customize scrolling behavior with a [Scrollable]:
@@ -47,7 +55,7 @@ typedef _EnsureVisibleResults = (List<Future<void>>, ScrollableState);
 /// 2. You can provide a custom [ScrollController] that creates a custom
 ///    [ScrollPosition] subclass. For example, [PageView] uses a
 ///    [PageController], which creates a page-oriented scroll position subclass
-///    that keeps the same page visible when the [Scrollable] resizes.
+///    that keeps the same page visible when the [MTScrollable] resizes.
 ///
 /// ## Persisting the scroll position during a session
 ///
@@ -55,7 +63,7 @@ typedef _EnsureVisibleResults = (List<Future<void>>, ScrollableState);
 /// This can be disabled by setting [ScrollController.keepScrollOffset] to false
 /// on the [controller]. If it is enabled, using a [PageStorageKey] for the
 /// [key] of this widget (or one of its ancestors, e.g. a [ScrollView]) is
-/// recommended to help disambiguate different [Scrollable]s from each other.
+/// recommended to help disambiguate different [MTScrollable]s from each other.
 ///
 /// See also:
 ///
@@ -71,9 +79,9 @@ typedef _EnsureVisibleResults = (List<Future<void>>, ScrollableState);
 ///    child.
 ///  * [ScrollNotification] and [NotificationListener], which can be used to watch
 ///    the scroll position without using a [ScrollController].
-class Scrollable extends StatefulWidget {
+class MTScrollable extends StatefulWidget {
   /// Creates a widget that scrolls.
-  const Scrollable({
+  const MTScrollable({
     super.key,
     this.axisDirection = AxisDirection.down,
     this.controller,
@@ -91,7 +99,7 @@ class Scrollable extends StatefulWidget {
   /// {@template flutter.widgets.Scrollable.axisDirection}
   /// The direction in which this widget scrolls.
   ///
-  /// For example, if the [Scrollable.axisDirection] is [AxisDirection.down],
+  /// For example, if the [MTScrollable.axisDirection] is [AxisDirection.down],
   /// increasing the scroll position will cause content below the bottom of the
   /// viewport to become visible through the viewport. Similarly, if the
   /// axisDirection is [AxisDirection.right], increasing the scroll position
@@ -114,12 +122,12 @@ class Scrollable extends StatefulWidget {
   /// scroll position (see [ScrollController.offset]), or change it (see
   /// [ScrollController.animateTo]).
   ///
-  /// If null, a [ScrollController] will be created internally by [Scrollable]
+  /// If null, a [ScrollController] will be created internally by [MTScrollable]
   /// in order to create and manage the [ScrollPosition].
   ///
   /// See also:
   ///
-  ///  * [Scrollable.ensureVisible], which animates the scroll position to
+  ///  * [MTScrollable.ensureVisible], which animates the scroll position to
   ///    reveal a given [BuildContext].
   /// {@endtemplate}
   final ScrollController? controller;
@@ -134,8 +142,8 @@ class Scrollable extends StatefulWidget {
   /// the ambient [ScrollConfiguration].
   ///
   /// If an explicit [ScrollBehavior] is provided to
-  /// [Scrollable.scrollBehavior], the [ScrollPhysics] provided by that behavior
-  /// will take precedence after [Scrollable.physics].
+  /// [MTScrollable.scrollBehavior], the [ScrollPhysics] provided by that behavior
+  /// will take precedence after [MTScrollable.physics].
   ///
   /// The physics can be changed dynamically, but new physics will only take
   /// effect if the _class_ of the provided object changes. Merely constructing
@@ -163,25 +171,25 @@ class Scrollable extends StatefulWidget {
   ///  * [Viewport], which is a viewport that displays a list of slivers.
   ///  * [ShrinkWrappingViewport], which is a viewport that displays a list of
   ///    slivers and sizes itself based on the size of the slivers.
-  final ViewportBuilder viewportBuilder;
+  final MTViewportBuilder viewportBuilder;
 
   /// {@template flutter.widgets.Scrollable.incrementCalculator}
   /// An optional function that will be called to calculate the distance to
   /// scroll when the scrollable is asked to scroll via the keyboard using a
-  /// [ScrollAction].
+  /// [MTScrollAction].
   ///
-  /// If not supplied, the [Scrollable] will scroll a default amount when a
+  /// If not supplied, the [MTScrollable] will scroll a default amount when a
   /// keyboard navigation key is pressed (e.g. pageUp/pageDown, control-upArrow,
-  /// etc.), or otherwise invoked by a [ScrollAction].
+  /// etc.), or otherwise invoked by a [MTScrollAction].
   ///
   /// If [incrementCalculator] is null, the default for
-  /// [ScrollIncrementType.page] is 80% of the size of the scroll window, and
-  /// for [ScrollIncrementType.line], 50 logical pixels.
+  /// [MTScrollIncrementType.page] is 80% of the size of the scroll window, and
+  /// for [MTScrollIncrementType.line], 50 logical pixels.
   /// {@endtemplate}
-  final ScrollIncrementCalculator? incrementCalculator;
+  final MTScrollIncrementCalculator? incrementCalculator;
 
   /// {@template flutter.widgets.scrollable.excludeFromSemantics}
-  /// Whether the scroll actions introduced by this [Scrollable] are exposed
+  /// Whether the scroll actions introduced by this [MTScrollable] are exposed
   /// in the semantics tree.
   ///
   /// Text fields with an overflow are usually scrollable to make sure that the
@@ -264,7 +272,7 @@ class Scrollable extends StatefulWidget {
   /// Defaults to [Clip.hardEdge].
   ///
   /// This is passed to decorators in [ScrollableDetails], and does not directly affect
-  /// clipping of the [Scrollable]. This reflects the same [Clip] that is provided
+  /// clipping of the [MTScrollable]. This reflects the same [Clip] that is provided
   /// to [ScrollView.clipBehavior] and is supplied to the [Viewport].
   final Clip clipBehavior;
 
@@ -274,7 +282,7 @@ class Scrollable extends StatefulWidget {
   Axis get axis => axisDirectionToAxis(axisDirection);
 
   @override
-  ScrollableState createState() => ScrollableState();
+  MTScrollableState createState() => MTScrollableState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -293,32 +301,32 @@ class Scrollable extends StatefulWidget {
   /// ScrollableState? scrollable = Scrollable.maybeOf(context);
   /// ```
   ///
-  /// Calling this method will create a dependency on the [ScrollableState]
+  /// Calling this method will create a dependency on the [MTScrollableState]
   /// that is returned, if there is one. This is typically the closest
-  /// [Scrollable], but may be a more distant ancestor if [axis] is used to
-  /// target a specific [Scrollable].
+  /// [MTScrollable], but may be a more distant ancestor if [axis] is used to
+  /// target a specific [MTScrollable].
   ///
   /// Using the optional [Axis] is useful when Scrollables are nested and the
-  /// target [Scrollable] is not the closest instance. When [axis] is provided,
-  /// the nearest enclosing [ScrollableState] in that [Axis] is returned, or
+  /// target [MTScrollable] is not the closest instance. When [axis] is provided,
+  /// the nearest enclosing [MTScrollableState] in that [Axis] is returned, or
   /// null if there is none.
   ///
-  /// This finds the nearest _ancestor_ [Scrollable] of the `context`. This
-  /// means that if the `context` is that of a [Scrollable], it will _not_ find
-  /// _that_ [Scrollable].
+  /// This finds the nearest _ancestor_ [MTScrollable] of the `context`. This
+  /// means that if the `context` is that of a [MTScrollable], it will _not_ find
+  /// _that_ [MTScrollable].
   ///
   /// See also:
   ///
-  /// * [Scrollable.of], which is similar to this method, but asserts
-  ///   if no [Scrollable] ancestor is found.
-  static ScrollableState? maybeOf(BuildContext context, {Axis? axis}) {
+  /// * [MTScrollable.of], which is similar to this method, but asserts
+  ///   if no [MTScrollable] ancestor is found.
+  static MTScrollableState? maybeOf(BuildContext context, {Axis? axis}) {
     // This is the context that will need to establish the dependency.
     final BuildContext originalContext = context;
     InheritedElement? element =
-        context.getElementForInheritedWidgetOfExactType<_ScrollableScope>();
+        context.getElementForInheritedWidgetOfExactType<_MTScrollableScope>();
     while (element != null) {
-      final ScrollableState scrollable =
-          (element.widget as _ScrollableScope).scrollable;
+      final MTScrollableState scrollable =
+          (element.widget as _MTScrollableScope).scrollable;
       if (axis == null ||
           axisDirectionToAxis(scrollable.axisDirection) == axis) {
         // Establish the dependency on the correct context.
@@ -327,7 +335,7 @@ class Scrollable extends StatefulWidget {
       }
       context = scrollable.context;
       element =
-          context.getElementForInheritedWidgetOfExactType<_ScrollableScope>();
+          context.getElementForInheritedWidgetOfExactType<_MTScrollableScope>();
     }
     return null;
   }
@@ -341,28 +349,28 @@ class Scrollable extends StatefulWidget {
   /// ScrollableState scrollable = Scrollable.of(context);
   /// ```
   ///
-  /// Calling this method will create a dependency on the [ScrollableState]
+  /// Calling this method will create a dependency on the [MTScrollableState]
   /// that is returned, if there is one. This is typically the closest
-  /// [Scrollable], but may be a more distant ancestor if [axis] is used to
-  /// target a specific [Scrollable].
+  /// [MTScrollable], but may be a more distant ancestor if [axis] is used to
+  /// target a specific [MTScrollable].
   ///
   /// Using the optional [Axis] is useful when Scrollables are nested and the
-  /// target [Scrollable] is not the closest instance. When [axis] is provided,
-  /// the nearest enclosing [ScrollableState] in that [Axis] is returned.
+  /// target [MTScrollable] is not the closest instance. When [axis] is provided,
+  /// the nearest enclosing [MTScrollableState] in that [Axis] is returned.
   ///
-  /// This finds the nearest _ancestor_ [Scrollable] of the `context`. This
-  /// means that if the `context` is that of a [Scrollable], it will _not_ find
-  /// _that_ [Scrollable].
+  /// This finds the nearest _ancestor_ [MTScrollable] of the `context`. This
+  /// means that if the `context` is that of a [MTScrollable], it will _not_ find
+  /// _that_ [MTScrollable].
   ///
-  /// If no [Scrollable] ancestor is found, then this method will assert in
+  /// If no [MTScrollable] ancestor is found, then this method will assert in
   /// debug mode, and throw an exception in release mode.
   ///
   /// See also:
   ///
-  /// * [Scrollable.maybeOf], which is similar to this method, but returns null
-  ///   if no [Scrollable] ancestor is found.
-  static ScrollableState of(BuildContext context, {Axis? axis}) {
-    final ScrollableState? scrollableState = maybeOf(context, axis: axis);
+  /// * [MTScrollable.maybeOf], which is similar to this method, but returns null
+  ///   if no [MTScrollable] ancestor is found.
+  static MTScrollableState of(BuildContext context, {Axis? axis}) {
+    final MTScrollableState? scrollableState = maybeOf(context, axis: axis);
     assert(() {
       if (scrollableState == null) {
         throw FlutterError.fromParts(<DiagnosticsNode>[
@@ -398,28 +406,28 @@ class Scrollable extends StatefulWidget {
   /// This also means that the value returned is only good for the point in time
   /// when it is called, and callers will not get updated if the value changes.
   ///
-  /// The heuristic used is determined by the [physics] of this [Scrollable]
+  /// The heuristic used is determined by the [physics] of this [MTScrollable]
   /// via [ScrollPhysics.recommendDeferredLoading]. That method is called with
   /// the current [ScrollPosition.activity]'s [ScrollActivity.velocity].
   ///
-  /// The optional [Axis] allows targeting of a specific [Scrollable] of that
+  /// The optional [Axis] allows targeting of a specific [MTScrollable] of that
   /// axis, useful when Scrollables are nested. When [axis] is provided,
   /// [ScrollPosition.recommendDeferredLoading] is called for the nearest
-  /// [Scrollable] in that [Axis].
+  /// [MTScrollable] in that [Axis].
   ///
-  /// If there is no [Scrollable] in the widget tree above the [context], this
+  /// If there is no [MTScrollable] in the widget tree above the [context], this
   /// method returns false.
   static bool recommendDeferredLoadingForContext(BuildContext context,
       {Axis? axis}) {
-    _ScrollableScope? widget =
-        context.getInheritedWidgetOfExactType<_ScrollableScope>();
+    _MTScrollableScope? widget =
+        context.getInheritedWidgetOfExactType<_MTScrollableScope>();
     while (widget != null) {
       if (axis == null ||
           axisDirectionToAxis(widget.scrollable.axisDirection) == axis) {
         return widget.position.recommendDeferredLoading(context);
       }
       context = widget.scrollable.context;
-      widget = context.getInheritedWidgetOfExactType<_ScrollableScope>();
+      widget = context.getInheritedWidgetOfExactType<_MTScrollableScope>();
     }
     return false;
   }
@@ -427,8 +435,8 @@ class Scrollable extends StatefulWidget {
   /// Scrolls the scrollables that enclose the given context so as to make the
   /// given context visible.
   ///
-  /// If the [Scrollable] of the provided [BuildContext] is a
-  /// [TwoDimensionalScrollable], both vertical and horizontal axes will ensure
+  /// If the [MTScrollable] of the provided [BuildContext] is a
+  /// [MTTwoDimensionalScrollable], both vertical and horizontal axes will ensure
   /// the target is made visible.
   static Future<void> ensureVisible(
     BuildContext context, {
@@ -448,7 +456,7 @@ class Scrollable extends StatefulWidget {
     //
     // Also see https://github.com/flutter/flutter/issues/65100
     RenderObject? targetRenderObject;
-    ScrollableState? scrollable = Scrollable.maybeOf(context);
+    MTScrollableState? scrollable = MTScrollable.maybeOf(context);
     while (scrollable != null) {
       final List<Future<void>> newFutures;
       (newFutures, scrollable) = scrollable._performEnsureVisible(
@@ -463,7 +471,7 @@ class Scrollable extends StatefulWidget {
 
       targetRenderObject ??= context.findRenderObject();
       context = scrollable.context;
-      scrollable = Scrollable.maybeOf(context);
+      scrollable = MTScrollable.maybeOf(context);
     }
 
     if (futures.isEmpty || duration == Duration.zero) {
@@ -478,53 +486,53 @@ class Scrollable extends StatefulWidget {
 
 // Enable Scrollable.of() to work as if ScrollableState was an inherited widget.
 // ScrollableState.build() always rebuilds its _ScrollableScope.
-class _ScrollableScope extends InheritedWidget {
-  const _ScrollableScope({
+class _MTScrollableScope extends InheritedWidget {
+  const _MTScrollableScope({
     required this.scrollable,
     required this.position,
     required super.child,
   });
 
-  final ScrollableState scrollable;
+  final MTScrollableState scrollable;
   final ScrollPosition position;
 
   @override
-  bool updateShouldNotify(_ScrollableScope old) {
+  bool updateShouldNotify(_MTScrollableScope old) {
     return position != old.position;
   }
 }
 
-/// State object for a [Scrollable] widget.
+/// State object for a [MTScrollable] widget.
 ///
-/// To manipulate a [Scrollable] widget's scroll position, use the object
+/// To manipulate a [MTScrollable] widget's scroll position, use the object
 /// obtained from the [position] property.
 ///
-/// To be informed of when a [Scrollable] widget is scrolling, use a
+/// To be informed of when a [MTScrollable] widget is scrolling, use a
 /// [NotificationListener] to listen for [ScrollNotification] notifications.
 ///
 /// This class is not intended to be subclassed. To specialize the behavior of a
-/// [Scrollable], provide it with a [ScrollPhysics].
-class ScrollableState extends State<Scrollable>
+/// [MTScrollable], provide it with a [ScrollPhysics].
+class MTScrollableState extends State<MTScrollable>
     with TickerProviderStateMixin, RestorationMixin
     implements ScrollContext {
   // GETTERS
 
-  /// The manager for this [Scrollable] widget's viewport position.
+  /// The manager for this [MTScrollable] widget's viewport position.
   ///
-  /// To control what kind of [ScrollPosition] is created for a [Scrollable],
+  /// To control what kind of [ScrollPosition] is created for a [MTScrollable],
   /// provide it with custom [ScrollController] that creates the appropriate
   /// [ScrollPosition] in its [ScrollController.createScrollPosition] method.
   ScrollPosition get position => _position!;
   ScrollPosition? _position;
 
-  /// The resolved [ScrollPhysics] of the [ScrollableState].
+  /// The resolved [ScrollPhysics] of the [MTScrollableState].
   ScrollPhysics? get resolvedPhysics => _physics;
   ScrollPhysics? _physics;
 
   /// An [Offset] that represents the absolute distance from the origin, or 0,
   /// of the [ScrollPosition] expressed in the associated [Axis].
   ///
-  /// Used by [EdgeDraggingAutoScroller] to progress the position forward when a
+  /// Used by [MTEdgeDraggingAutoScroller] to progress the position forward when a
   /// drag gesture reaches the edge of the [Viewport].
   Offset get deltaToScrollOrigin {
     return switch (axisDirection) {
@@ -556,8 +564,8 @@ class ScrollableState extends State<Scrollable>
 
   @override
   String? get restorationId => widget.restorationId;
-  final _RestorableScrollOffset _persistedScrollOffset =
-      _RestorableScrollOffset();
+  final _MTRestorableScrollOffset _persistedScrollOffset =
+      _MTRestorableScrollOffset();
 
   late ScrollBehavior _configuration;
   ScrollController? _fallbackScrollController;
@@ -624,7 +632,7 @@ class ScrollableState extends State<Scrollable>
     super.didChangeDependencies();
   }
 
-  bool _shouldUpdatePosition(Scrollable oldWidget) {
+  bool _shouldUpdatePosition(MTScrollable oldWidget) {
     if ((widget.scrollBehavior == null) != (oldWidget.scrollBehavior == null)) {
       return true;
     }
@@ -649,7 +657,7 @@ class ScrollableState extends State<Scrollable>
   }
 
   @override
-  void didUpdateWidget(Scrollable oldWidget) {
+  void didUpdateWidget(MTScrollable oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (widget.controller != oldWidget.controller) {
@@ -712,7 +720,7 @@ class ScrollableState extends State<Scrollable>
   final GlobalKey _ignorePointerKey = GlobalKey();
 
   // This field is set during layout, and then reused until the next time it is set.
-  Map<Type, GestureRecognizerFactory> _gestureRecognizers =
+  Map<Type, GestureRecognizerFactory> gestureRecognizers =
       const <Type, GestureRecognizerFactory>{};
   bool _shouldIgnorePointer = false;
 
@@ -727,7 +735,7 @@ class ScrollableState extends State<Scrollable>
       return;
     }
     if (!value) {
-      _gestureRecognizers = const <Type, GestureRecognizerFactory>{};
+      gestureRecognizers = const <Type, GestureRecognizerFactory>{};
       // Cancel the active hold/drag (if any) because the gesture recognizers
       // will soon be disposed by our RawGestureDetector, and we won't be
       // receiving pointer up events to cancel the hold/drag.
@@ -735,7 +743,7 @@ class ScrollableState extends State<Scrollable>
     } else {
       switch (widget.axis) {
         case Axis.vertical:
-          _gestureRecognizers = <Type, GestureRecognizerFactory>{
+          gestureRecognizers = <Type, GestureRecognizerFactory>{
             VerticalDragGestureRecognizer: GestureRecognizerFactoryWithHandlers<
                 VerticalDragGestureRecognizer>(
               () => VerticalDragGestureRecognizer(
@@ -761,7 +769,7 @@ class ScrollableState extends State<Scrollable>
             ),
           };
         case Axis.horizontal:
-          _gestureRecognizers = <Type, GestureRecognizerFactory>{
+          gestureRecognizers = <Type, GestureRecognizerFactory>{
             HorizontalDragGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<
                     HorizontalDragGestureRecognizer>(
@@ -793,7 +801,7 @@ class ScrollableState extends State<Scrollable>
     _lastAxisDirection = widget.axis;
     if (_gestureDetectorKey.currentState != null) {
       _gestureDetectorKey.currentState!
-          .replaceGestureRecognizers(_gestureRecognizers);
+          .replaceGestureRecognizers(gestureRecognizers);
     }
   }
 
@@ -973,14 +981,14 @@ class ScrollableState extends State<Scrollable>
     //
     // Since notificationContext is pointing to _gestureDetectorKey.context, _ScrollableScope
     // must be placed above the widget using it: RawGestureDetector
-    Widget result = _ScrollableScope(
+    Widget result = _MTScrollableScope(
       scrollable: this,
       position: position,
       child: Listener(
         onPointerSignal: _receivedPointerSignal,
         child: RawGestureDetector(
           key: _gestureDetectorKey,
-          gestures: _gestureRecognizers,
+          gestures: gestureRecognizers,
           behavior: HitTestBehavior.opaque,
           excludeFromSemantics: widget.excludeFromSemantics,
           child: Semantics(
@@ -998,7 +1006,7 @@ class ScrollableState extends State<Scrollable>
     if (!widget.excludeFromSemantics) {
       result = NotificationListener<ScrollMetricsNotification>(
           onNotification: _handleScrollMetricsNotification,
-          child: _ScrollSemantics(
+          child: _MTScrollSemantics(
             key: _scrollSemanticsKey,
             position: position,
             allowImplicitScrolling: _physics!.allowImplicitScrolling,
@@ -1012,7 +1020,7 @@ class ScrollableState extends State<Scrollable>
     // Selection is only enabled when there is a parent registrar.
     final SelectionRegistrar? registrar = SelectionContainer.maybeOf(context);
     if (registrar != null) {
-      result = _ScrollableSelectionHandler(
+      result = _MTScrollableSelectionHandler(
         state: this,
         position: position,
         registrar: registrar,
@@ -1026,7 +1034,7 @@ class ScrollableState extends State<Scrollable>
   // Returns the Future from calling ensureVisible for the ScrollPosition, as
   // as well as this ScrollableState instance so its context can be used to
   // check for other ancestor Scrollables in executing ensureVisible.
-  _EnsureVisibleResults _performEnsureVisible(
+  _MTEnsureVisibleResults _performEnsureVisible(
     RenderObject object, {
     double alignment = 0.0,
     Duration duration = Duration.zero,
@@ -1059,39 +1067,39 @@ class ScrollableState extends State<Scrollable>
 ///
 /// This widget registers itself to the [registrar] and uses
 /// [SelectionContainer] to collect selectables from its subtree.
-class _ScrollableSelectionHandler extends StatefulWidget {
-  const _ScrollableSelectionHandler({
+class _MTScrollableSelectionHandler extends StatefulWidget {
+  const _MTScrollableSelectionHandler({
     required this.state,
     required this.position,
     required this.registrar,
     required this.child,
   });
 
-  final ScrollableState state;
+  final MTScrollableState state;
   final ScrollPosition position;
   final Widget child;
   final SelectionRegistrar registrar;
 
   @override
-  _ScrollableSelectionHandlerState createState() =>
-      _ScrollableSelectionHandlerState();
+  _MTScrollableSelectionHandlerState createState() =>
+      _MTScrollableSelectionHandlerState();
 }
 
-class _ScrollableSelectionHandlerState
-    extends State<_ScrollableSelectionHandler> {
-  late _ScrollableSelectionContainerDelegate _selectionDelegate;
+class _MTScrollableSelectionHandlerState
+    extends State<_MTScrollableSelectionHandler> {
+  late _MTScrollableSelectionContainerDelegate _selectionDelegate;
 
   @override
   void initState() {
     super.initState();
-    _selectionDelegate = _ScrollableSelectionContainerDelegate(
+    _selectionDelegate = _MTScrollableSelectionContainerDelegate(
       state: widget.state,
       position: widget.position,
     );
   }
 
   @override
-  void didUpdateWidget(_ScrollableSelectionHandler oldWidget) {
+  void didUpdateWidget(_MTScrollableSelectionHandler oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.position != widget.position) {
       _selectionDelegate.position = widget.position;
@@ -1121,12 +1129,12 @@ class _ScrollableSelectionHandlerState
 /// selectable. The records are used to determine whether the selection is up to
 /// date with the scroll position when it sends the drag update event to a
 /// selectable.
-class _ScrollableSelectionContainerDelegate
+class _MTScrollableSelectionContainerDelegate
     extends MultiSelectableSelectionContainerDelegate {
-  _ScrollableSelectionContainerDelegate(
+  _MTScrollableSelectionContainerDelegate(
       {required this.state, required ScrollPosition position})
       : _position = position,
-        _autoScroller = EdgeDraggingAutoScroller(state,
+        _autoScroller = MTEdgeDraggingAutoScroller(state,
             velocityScalar: _kDefaultSelectToScrollVelocityScalar) {
     _position.addListener(_scheduleLayoutChange);
   }
@@ -1137,8 +1145,8 @@ class _ScrollableSelectionContainerDelegate
   // An eye-balled value for a smooth scrolling speed.
   static const double _kDefaultSelectToScrollVelocityScalar = 30;
 
-  final ScrollableState state;
-  final EdgeDraggingAutoScroller _autoScroller;
+  final MTScrollableState state;
+  final MTEdgeDraggingAutoScroller _autoScroller;
   bool _scheduledLayoutChange = false;
   Offset? _currentDragStartRelatedToOrigin;
   Offset? _currentDragEndRelatedToOrigin;
@@ -1548,7 +1556,7 @@ class _ScrollableSelectionContainerDelegate
   }
 }
 
-Offset _getDeltaToScrollOrigin(ScrollableState scrollableState) {
+Offset _getDeltaToScrollOrigin(MTScrollableState scrollableState) {
   return switch (scrollableState.axisDirection) {
     AxisDirection.up => Offset(0, -scrollableState.position.pixels),
     AxisDirection.down => Offset(0, scrollableState.position.pixels),
@@ -1557,7 +1565,7 @@ Offset _getDeltaToScrollOrigin(ScrollableState scrollableState) {
   };
 }
 
-/// With [_ScrollSemantics] certain child [SemanticsNode]s can be
+/// With [_MTScrollSemantics] certain child [SemanticsNode]s can be
 /// excluded from the scrollable area for semantics purposes.
 ///
 /// Nodes, that are to be excluded, have to be tagged with
@@ -1571,8 +1579,8 @@ Offset _getDeltaToScrollOrigin(ScrollableState scrollableState) {
 /// node will contain all children, that are excluded from scrolling. The inner
 /// node, which is annotated with the scrolling actions, will house the
 /// scrollable children.
-class _ScrollSemantics extends SingleChildRenderObjectWidget {
-  const _ScrollSemantics({
+class _MTScrollSemantics extends SingleChildRenderObjectWidget {
+  const _MTScrollSemantics({
     super.key,
     required this.position,
     required this.allowImplicitScrolling,
@@ -1585,8 +1593,8 @@ class _ScrollSemantics extends SingleChildRenderObjectWidget {
   final int? semanticChildCount;
 
   @override
-  _RenderScrollSemantics createRenderObject(BuildContext context) {
-    return _RenderScrollSemantics(
+  _MTRenderScrollSemantics createRenderObject(BuildContext context) {
+    return _MTRenderScrollSemantics(
       position: position,
       allowImplicitScrolling: allowImplicitScrolling,
       semanticChildCount: semanticChildCount,
@@ -1595,7 +1603,7 @@ class _ScrollSemantics extends SingleChildRenderObjectWidget {
 
   @override
   void updateRenderObject(
-      BuildContext context, _RenderScrollSemantics renderObject) {
+      BuildContext context, _MTRenderScrollSemantics renderObject) {
     renderObject
       ..allowImplicitScrolling = allowImplicitScrolling
       ..position = position
@@ -1603,8 +1611,8 @@ class _ScrollSemantics extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderScrollSemantics extends RenderProxyBox {
-  _RenderScrollSemantics({
+class _MTRenderScrollSemantics extends RenderProxyBox {
+  _MTRenderScrollSemantics({
     required ScrollPosition position,
     required bool allowImplicitScrolling,
     required int? semanticChildCount,
@@ -1707,7 +1715,7 @@ class _RenderScrollSemantics extends RenderProxyBox {
 
 // Not using a RestorableDouble because we want to allow null values and override
 // [enabled].
-class _RestorableScrollOffset extends RestorableValue<double?> {
+class _MTRestorableScrollOffset extends RestorableValue<double?> {
   @override
   double? createDefaultValue() => null;
 
@@ -1733,9 +1741,9 @@ class _RestorableScrollOffset extends RestorableValue<double?> {
 // 2D SCROLLING
 
 /// Specifies how to configure the [DragGestureRecognizer]s of a
-/// [TwoDimensionalScrollable].
+/// [MTTwoDimensionalScrollable].
 // TODO(Piinks): Add sample code, https://github.com/flutter/flutter/issues/126298
-enum DiagonalDragBehavior {
+enum MTDiagonalDragBehavior {
   /// This behavior will not allow for any diagonal scrolling.
   ///
   /// Drag gestures in one direction or the other will lock the input axis until
@@ -1766,13 +1774,13 @@ enum DiagonalDragBehavior {
 /// dimensions and informs the [TwoDimensionalViewport] through which the
 /// content is viewed.
 ///
-/// [TwoDimensionalScrollable] implements the interaction model for a scrollable
+/// [MTTwoDimensionalScrollable] implements the interaction model for a scrollable
 /// widget in both the vertical and horizontal axes, including gesture
 /// recognition, but does not have an opinion about how the
 /// [TwoDimensionalViewport], which actually displays the children, is
 /// constructed.
 ///
-/// It's rare to construct a [TwoDimensionalScrollable] directly. Instead,
+/// It's rare to construct a [MTTwoDimensionalScrollable] directly. Instead,
 /// consider subclassing [TwoDimensionalScrollView], which combines scrolling,
 /// viewporting, and a layout model in both dimensions.
 ///
@@ -1782,12 +1790,12 @@ enum DiagonalDragBehavior {
 ///    scrolling array of children in both directions.
 ///  * [TwoDimensionalViewport], which can be used to customize the child layout
 ///    model.
-class TwoDimensionalScrollable extends StatefulWidget {
+class MTTwoDimensionalScrollable extends StatefulWidget {
   /// Creates a widget that scrolls in two dimensions.
   ///
   /// The [horizontalDetails], [verticalDetails], and [viewportBuilder] must not
   /// be null.
-  const TwoDimensionalScrollable({
+  const MTTwoDimensionalScrollable({
     super.key,
     required this.horizontalDetails,
     required this.verticalDetails,
@@ -1795,21 +1803,21 @@ class TwoDimensionalScrollable extends StatefulWidget {
     this.incrementCalculator,
     this.restorationId,
     this.excludeFromSemantics = false,
-    this.diagonalDragBehavior = DiagonalDragBehavior.none,
+    this.diagonalDragBehavior = MTDiagonalDragBehavior.none,
     this.dragStartBehavior = DragStartBehavior.start,
   });
 
   /// How scrolling gestures should lock to one axis, or allow free movement
   /// in both axes.
-  final DiagonalDragBehavior diagonalDragBehavior;
+  final MTDiagonalDragBehavior diagonalDragBehavior;
 
-  /// The configuration of the horizontal [Scrollable].
+  /// The configuration of the horizontal [MTScrollable].
   ///
   /// These [ScrollableDetails] can be used to set the [AxisDirection],
   /// [ScrollController], [ScrollPhysics] and more for the horizontal axis.
   final ScrollableDetails horizontalDetails;
 
-  /// The configuration of the vertical [Scrollable].
+  /// The configuration of the vertical [MTScrollable].
   ///
   /// These [ScrollableDetails] can be used to set the [AxisDirection],
   /// [ScrollController], [ScrollPhysics] and more for the vertical axis.
@@ -1824,17 +1832,17 @@ class TwoDimensionalScrollable extends StatefulWidget {
   ///
   ///  * [TwoDimensionalViewport], which is a viewport that displays a span of
   ///    widgets in both dimensions.
-  final TwoDimensionalViewportBuilder viewportBuilder;
+  final MTTwoDimensionalViewportBuilder viewportBuilder;
 
   /// {@macro flutter.widgets.Scrollable.incrementCalculator}
   ///
   /// This value applies in both axes.
-  final ScrollIncrementCalculator? incrementCalculator;
+  final MTScrollIncrementCalculator? incrementCalculator;
 
   /// {@macro flutter.widgets.scrollable.restorationId}
   ///
-  /// Internally, the [TwoDimensionalScrollable] will introduce a
-  /// [RestorationScope] that will be assigned this value. The two [Scrollable]s
+  /// Internally, the [MTTwoDimensionalScrollable] will introduce a
+  /// [RestorationScope] that will be assigned this value. The two [MTScrollable]s
   /// within will then be given unique IDs within this scope.
   final String? restorationId;
 
@@ -1849,8 +1857,8 @@ class TwoDimensionalScrollable extends StatefulWidget {
   final DragStartBehavior dragStartBehavior;
 
   @override
-  State<TwoDimensionalScrollable> createState() =>
-      TwoDimensionalScrollableState();
+  State<MTTwoDimensionalScrollable> createState() =>
+      MTTwoDimensionalScrollableState();
 
   /// The state from the closest instance of this class that encloses the given
   /// context, or null if none is found.
@@ -1862,20 +1870,20 @@ class TwoDimensionalScrollable extends StatefulWidget {
   /// ```
   ///
   /// Calling this method will create a dependency on the closest
-  /// [TwoDimensionalScrollable] in the [context]. The internal [Scrollable]s
-  /// can be accessed through [TwoDimensionalScrollableState.verticalScrollable]
-  /// and [TwoDimensionalScrollableState.horizontalScrollable].
+  /// [MTTwoDimensionalScrollable] in the [context]. The internal [MTScrollable]s
+  /// can be accessed through [MTTwoDimensionalScrollableState.verticalScrollable]
+  /// and [MTTwoDimensionalScrollableState.horizontalScrollable].
   ///
-  /// Alternatively, [Scrollable.maybeOf] can be used by providing the desired
+  /// Alternatively, [MTScrollable.maybeOf] can be used by providing the desired
   /// [Axis] to the `axis` parameter.
   ///
   /// See also:
   ///
-  /// * [TwoDimensionalScrollable.of], which is similar to this method, but
-  ///   asserts if no [Scrollable] ancestor is found.
-  static TwoDimensionalScrollableState? maybeOf(BuildContext context) {
-    final _TwoDimensionalScrollableScope? widget = context
-        .dependOnInheritedWidgetOfExactType<_TwoDimensionalScrollableScope>();
+  /// * [MTTwoDimensionalScrollable.of], which is similar to this method, but
+  ///   asserts if no [MTScrollable] ancestor is found.
+  static MTTwoDimensionalScrollableState? maybeOf(BuildContext context) {
+    final _MTTwoDimensionalScrollableScope? widget = context
+        .dependOnInheritedWidgetOfExactType<_MTTwoDimensionalScrollableScope>();
     return widget?.twoDimensionalScrollable;
   }
 
@@ -1889,22 +1897,22 @@ class TwoDimensionalScrollable extends StatefulWidget {
   /// ```
   ///
   /// Calling this method will create a dependency on the closest
-  /// [TwoDimensionalScrollable] in the [context]. The internal [Scrollable]s
-  /// can be accessed through [TwoDimensionalScrollableState.verticalScrollable]
-  /// and [TwoDimensionalScrollableState.horizontalScrollable].
+  /// [MTTwoDimensionalScrollable] in the [context]. The internal [MTScrollable]s
+  /// can be accessed through [MTTwoDimensionalScrollableState.verticalScrollable]
+  /// and [MTTwoDimensionalScrollableState.horizontalScrollable].
   ///
-  /// If no [TwoDimensionalScrollable] ancestor is found, then this method will
+  /// If no [MTTwoDimensionalScrollable] ancestor is found, then this method will
   /// assert in debug mode, and throw an exception in release mode.
   ///
-  /// Alternatively, [Scrollable.of] can be used by providing the desired [Axis]
+  /// Alternatively, [MTScrollable.of] can be used by providing the desired [Axis]
   /// to the `axis` parameter.
   ///
   /// See also:
   ///
-  /// * [TwoDimensionalScrollable.maybeOf], which is similar to this method,
-  ///   but returns null if no [TwoDimensionalScrollable] ancestor is found.
-  static TwoDimensionalScrollableState of(BuildContext context) {
-    final TwoDimensionalScrollableState? scrollableState = maybeOf(context);
+  /// * [MTTwoDimensionalScrollable.maybeOf], which is similar to this method,
+  ///   but returns null if no [MTTwoDimensionalScrollable] ancestor is found.
+  static MTTwoDimensionalScrollableState of(BuildContext context) {
+    final MTTwoDimensionalScrollableState? scrollableState = maybeOf(context);
     assert(() {
       if (scrollableState == null) {
         throw FlutterError.fromParts(<DiagnosticsNode>[
@@ -1927,43 +1935,44 @@ class TwoDimensionalScrollable extends StatefulWidget {
   }
 }
 
-/// State object for a [TwoDimensionalScrollable] widget.
+/// State object for a [MTTwoDimensionalScrollable] widget.
 ///
-/// To manipulate one of the internal [Scrollable] widget's scroll position, use
+/// To manipulate one of the internal [MTScrollable] widget's scroll position, use
 /// the object obtained from the [verticalScrollable] or [horizontalScrollable]
 /// property.
 ///
-/// To be informed of when a [TwoDimensionalScrollable] widget is scrolling,
+/// To be informed of when a [MTTwoDimensionalScrollable] widget is scrolling,
 /// use a [NotificationListener] to listen for [ScrollNotification]s.
 /// Both axes will have the same viewport depth since there is only one
 /// viewport, and so should be differentiated by the [Axis] of the
 /// [ScrollMetrics] provided by the notification.
-class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
+class MTTwoDimensionalScrollableState
+    extends State<MTTwoDimensionalScrollable> {
   ScrollController? _verticalFallbackController;
   ScrollController? _horizontalFallbackController;
-  final GlobalKey<ScrollableState> _verticalOuterScrollableKey =
-      GlobalKey<ScrollableState>();
-  final GlobalKey<ScrollableState> _horizontalInnerScrollableKey =
-      GlobalKey<ScrollableState>();
+  final GlobalKey<MTScrollableState> _verticalOuterScrollableKey =
+      GlobalKey<MTScrollableState>();
+  final GlobalKey<MTScrollableState> _horizontalInnerScrollableKey =
+      GlobalKey<MTScrollableState>();
 
-  /// The [ScrollableState] of the vertical axis.
+  /// The [MTScrollableState] of the vertical axis.
   ///
-  /// Accessible by calling [TwoDimensionalScrollable.of].
+  /// Accessible by calling [MTTwoDimensionalScrollable.of].
   ///
-  /// Alternatively, [Scrollable.of] can be used by providing [Axis.vertical]
+  /// Alternatively, [MTScrollable.of] can be used by providing [Axis.vertical]
   /// to the `axis` parameter.
-  ScrollableState get verticalScrollable {
+  MTScrollableState get verticalScrollable {
     assert(_verticalOuterScrollableKey.currentState != null);
     return _verticalOuterScrollableKey.currentState!;
   }
 
-  /// The [ScrollableState] of the horizontal axis.
+  /// The [MTScrollableState] of the horizontal axis.
   ///
-  /// Accessible by calling [TwoDimensionalScrollable.of].
+  /// Accessible by calling [MTTwoDimensionalScrollable.of].
   ///
-  /// Alternatively, [Scrollable.of] can be used by providing [Axis.horizontal]
+  /// Alternatively, [MTScrollable.of] can be used by providing [Axis.horizontal]
   /// to the `axis` parameter.
-  ScrollableState get horizontalScrollable {
+  MTScrollableState get horizontalScrollable {
     assert(_horizontalInnerScrollableKey.currentState != null);
     return _horizontalInnerScrollableKey.currentState!;
   }
@@ -1980,7 +1989,7 @@ class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
   }
 
   @override
-  void didUpdateWidget(TwoDimensionalScrollable oldWidget) {
+  void didUpdateWidget(MTTwoDimensionalScrollable oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Handle changes in the provided/fallback scroll controllers
 
@@ -2033,7 +2042,7 @@ class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
 
     final Widget result = RestorationScope(
         restorationId: widget.restorationId,
-        child: _VerticalOuterDimension(
+        child: _MTVerticalOuterDimension(
             key: _verticalOuterScrollableKey,
             // For gesture forwarding
             horizontalKey: _horizontalInnerScrollableKey,
@@ -2051,7 +2060,7 @@ class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
             diagonalDragBehavior: widget.diagonalDragBehavior,
             viewportBuilder:
                 (BuildContext context, ViewportOffset verticalOffset) {
-              return _HorizontalInnerDimension(
+              return _MTHorizontalInnerDimension(
                 key: _horizontalInnerScrollableKey,
                 verticalOuterKey: _verticalOuterScrollableKey,
                 axisDirection: widget.horizontalDetails.direction,
@@ -2077,7 +2086,7 @@ class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
     // TODO(Piinks): Build scrollbars for 2 dimensions instead of 1,
     //  https://github.com/flutter/flutter/issues/122348
 
-    return _TwoDimensionalScrollableScope(
+    return _MTTwoDimensionalScrollableScope(
       twoDimensionalScrollable: this,
       child: result,
     );
@@ -2095,21 +2104,21 @@ class TwoDimensionalScrollableState extends State<TwoDimensionalScrollable> {
 // TwoDimensionalScrollableState was an inherited widget.
 // TwoDimensionalScrollableState.build() always rebuilds its
 // _TwoDimensionalScrollableScope.
-class _TwoDimensionalScrollableScope extends InheritedWidget {
-  const _TwoDimensionalScrollableScope({
+class _MTTwoDimensionalScrollableScope extends InheritedWidget {
+  const _MTTwoDimensionalScrollableScope({
     required this.twoDimensionalScrollable,
     required super.child,
   });
 
-  final TwoDimensionalScrollableState twoDimensionalScrollable;
+  final MTTwoDimensionalScrollableState twoDimensionalScrollable;
 
   @override
-  bool updateShouldNotify(_TwoDimensionalScrollableScope old) => false;
+  bool updateShouldNotify(_MTTwoDimensionalScrollableScope old) => false;
 }
 
 // Vertical outer scrollable of 2D scrolling
-class _VerticalOuterDimension extends Scrollable {
-  const _VerticalOuterDimension({
+class _MTVerticalOuterDimension extends MTScrollable {
+  const _MTVerticalOuterDimension({
     super.key,
     required this.horizontalKey,
     required super.viewportBuilder,
@@ -2121,29 +2130,30 @@ class _VerticalOuterDimension extends Scrollable {
     super.excludeFromSemantics,
     super.dragStartBehavior,
     super.restorationId,
-    this.diagonalDragBehavior = DiagonalDragBehavior.none,
+    this.diagonalDragBehavior = MTDiagonalDragBehavior.none,
   }) : assert(axisDirection == AxisDirection.up ||
             axisDirection == AxisDirection.down);
 
-  final DiagonalDragBehavior diagonalDragBehavior;
-  final GlobalKey<ScrollableState> horizontalKey;
+  final MTDiagonalDragBehavior diagonalDragBehavior;
+  final GlobalKey<MTScrollableState> horizontalKey;
 
   @override
-  _VerticalOuterDimensionState createState() => _VerticalOuterDimensionState();
+  _MTVerticalOuterDimensionState createState() =>
+      _MTVerticalOuterDimensionState();
 }
 
-class _VerticalOuterDimensionState extends ScrollableState {
-  DiagonalDragBehavior get diagonalDragBehavior =>
-      (widget as _VerticalOuterDimension).diagonalDragBehavior;
-  ScrollableState get horizontalScrollable =>
-      (widget as _VerticalOuterDimension).horizontalKey.currentState!;
+class _MTVerticalOuterDimensionState extends MTScrollableState {
+  MTDiagonalDragBehavior get diagonalDragBehavior =>
+      (widget as _MTVerticalOuterDimension).diagonalDragBehavior;
+  MTScrollableState get horizontalScrollable =>
+      (widget as _MTVerticalOuterDimension).horizontalKey.currentState!;
 
   Axis? lockedAxis;
   Offset? lastDragOffset;
 
   // Implemented in the _HorizontalInnerDimension instead.
   @override
-  _EnsureVisibleResults _performEnsureVisible(
+  _MTEnsureVisibleResults _performEnsureVisible(
     RenderObject object, {
     double alignment = 0.0,
     Duration duration = Duration.zero,
@@ -2175,11 +2185,11 @@ class _VerticalOuterDimensionState extends ScrollableState {
   @override
   void _handleDragDown(DragDownDetails details) {
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         break;
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.free:
         // Initiate hold. If one or the other wins the gesture, cancel the
         // opposite axis.
         horizontalScrollable._handleDragDown(details);
@@ -2191,14 +2201,14 @@ class _VerticalOuterDimensionState extends ScrollableState {
   void _handleDragStart(DragStartDetails details) {
     lastDragOffset = details.globalPosition;
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         break;
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.free:
         // Prepare to scroll both.
         // vertical - will call super below after switch.
         horizontalScrollable._handleDragStart(details);
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
         // See if one axis wins the drag.
         _evaluateLockedAxis(details.globalPosition);
         switch (lockedAxis) {
@@ -2235,20 +2245,20 @@ class _VerticalOuterDimensionState extends ScrollableState {
     );
 
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         // Default gesture handling from super class.
         super._handleDragUpdate(verticalDragDetails);
         return;
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.free:
         // Scroll both axes
         horizontalScrollable._handleDragUpdate(horizontalDragDetails);
         super._handleDragUpdate(verticalDragDetails);
         return;
-      case DiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.weightedContinuous:
         // Re-evaluate locked axis for every update.
         _evaluateLockedAxis(details.globalPosition);
         lastDragOffset = details.globalPosition;
-      case DiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedEvent:
         // Lock axis only once per gesture.
         if (lockedAxis == null && lastDragOffset != null) {
           // A winner has not been declared yet.
@@ -2286,11 +2296,11 @@ class _VerticalOuterDimensionState extends ScrollableState {
     );
 
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         break;
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.free:
         horizontalScrollable._handleDragEnd(horizontalDragDetails);
     }
     super._handleDragEnd(verticalDragDetails);
@@ -2301,11 +2311,11 @@ class _VerticalOuterDimensionState extends ScrollableState {
     lastDragOffset = null;
     lockedAxis = null;
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         break;
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.free:
         horizontalScrollable._handleDragCancel();
     }
     super._handleDragCancel();
@@ -2314,21 +2324,21 @@ class _VerticalOuterDimensionState extends ScrollableState {
   @override
   void setCanDrag(bool value) {
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         // If we aren't scrolling diagonally, the default drag gesture recognizer
         // is used.
         super.setCanDrag(value);
         return;
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.free:
         if (value) {
           // Replaces the typical vertical/horizontal drag gesture recognizers
           // with a pan gesture recognizer to allow bidirectional scrolling.
           // Based on the diagonalDragBehavior, valid vertical deltas are
           // applied to this scrollable, while horizontal deltas are routed to
           // the horizontal scrollable.
-          _gestureRecognizers = <Type, GestureRecognizerFactory>{
+          gestureRecognizers = <Type, GestureRecognizerFactory>{
             PanGestureRecognizer:
                 GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
               () => PanGestureRecognizer(
@@ -2358,7 +2368,7 @@ class _VerticalOuterDimensionState extends ScrollableState {
           _lastAxisDirection = widget.axis;
           if (_gestureDetectorKey.currentState != null) {
             _gestureDetectorKey.currentState!
-                .replaceGestureRecognizers(_gestureRecognizers);
+                .replaceGestureRecognizers(gestureRecognizers);
           }
         }
         return;
@@ -2379,8 +2389,8 @@ class _VerticalOuterDimensionState extends ScrollableState {
 }
 
 // Horizontal inner scrollable of 2D scrolling
-class _HorizontalInnerDimension extends Scrollable {
-  const _HorizontalInnerDimension({
+class _MTHorizontalInnerDimension extends MTScrollable {
+  const _MTHorizontalInnerDimension({
     super.key,
     required this.verticalOuterKey,
     required super.viewportBuilder,
@@ -2392,29 +2402,29 @@ class _HorizontalInnerDimension extends Scrollable {
     super.excludeFromSemantics,
     super.dragStartBehavior,
     super.restorationId,
-    this.diagonalDragBehavior = DiagonalDragBehavior.none,
+    this.diagonalDragBehavior = MTDiagonalDragBehavior.none,
   }) : assert(axisDirection == AxisDirection.left ||
             axisDirection == AxisDirection.right);
 
-  final GlobalKey<ScrollableState> verticalOuterKey;
-  final DiagonalDragBehavior diagonalDragBehavior;
+  final GlobalKey<MTScrollableState> verticalOuterKey;
+  final MTDiagonalDragBehavior diagonalDragBehavior;
 
   @override
-  _HorizontalInnerDimensionState createState() =>
-      _HorizontalInnerDimensionState();
+  _MTHorizontalInnerDimensionState createState() =>
+      _MTHorizontalInnerDimensionState();
 }
 
-class _HorizontalInnerDimensionState extends ScrollableState {
-  late ScrollableState verticalScrollable;
+class _MTHorizontalInnerDimensionState extends MTScrollableState {
+  late MTScrollableState verticalScrollable;
 
-  GlobalKey<ScrollableState> get verticalOuterKey =>
-      (widget as _HorizontalInnerDimension).verticalOuterKey;
-  DiagonalDragBehavior get diagonalDragBehavior =>
-      (widget as _HorizontalInnerDimension).diagonalDragBehavior;
+  GlobalKey<MTScrollableState> get verticalOuterKey =>
+      (widget as _MTHorizontalInnerDimension).verticalOuterKey;
+  MTDiagonalDragBehavior get diagonalDragBehavior =>
+      (widget as _MTHorizontalInnerDimension).diagonalDragBehavior;
 
   @override
   void didChangeDependencies() {
-    verticalScrollable = Scrollable.of(context);
+    verticalScrollable = MTScrollable.of(context);
     assert(
         axisDirectionToAxis(verticalScrollable.axisDirection) == Axis.vertical);
     super.didChangeDependencies();
@@ -2424,7 +2434,7 @@ class _HorizontalInnerDimensionState extends ScrollableState {
   // as well as the vertical ScrollableState instance so its context can be
   // used to check for other ancestor Scrollables in executing ensureVisible.
   @override
-  _EnsureVisibleResults _performEnsureVisible(
+  _MTEnsureVisibleResults _performEnsureVisible(
     RenderObject object, {
     double alignment = 0.0,
     Duration duration = Duration.zero,
@@ -2457,21 +2467,21 @@ class _HorizontalInnerDimensionState extends ScrollableState {
   @override
   void setCanDrag(bool value) {
     switch (diagonalDragBehavior) {
-      case DiagonalDragBehavior.none:
+      case MTDiagonalDragBehavior.none:
         // If we aren't scrolling diagonally, the default drag gesture
         // recognizer is used.
         super.setCanDrag(value);
         return;
-      case DiagonalDragBehavior.weightedEvent:
-      case DiagonalDragBehavior.weightedContinuous:
-      case DiagonalDragBehavior.free:
+      case MTDiagonalDragBehavior.weightedEvent:
+      case MTDiagonalDragBehavior.weightedContinuous:
+      case MTDiagonalDragBehavior.free:
         if (value) {
           // If a type of diagonal scrolling is enabled, a panning gesture
           // recognizer will be created for the _VerticalOuterDimension. So in
           // this case, the _HorizontalInnerDimension does not require a gesture
           // recognizer, meanwhile we should ensure the outer dimension has
           // updated in case it did not have enough content to enable dragging.
-          _gestureRecognizers = const <Type, GestureRecognizerFactory>{};
+          gestureRecognizers = const <Type, GestureRecognizerFactory>{};
           verticalOuterKey.currentState!.setCanDrag(value);
           // Cancel the active hold/drag (if any) because the gesture recognizers
           // will soon be disposed by our RawGestureDetector, and we won't be
@@ -2481,7 +2491,7 @@ class _HorizontalInnerDimensionState extends ScrollableState {
           _lastAxisDirection = widget.axis;
           if (_gestureDetectorKey.currentState != null) {
             _gestureDetectorKey.currentState!
-                .replaceGestureRecognizers(_gestureRecognizers);
+                .replaceGestureRecognizers(gestureRecognizers);
           }
         }
         return;

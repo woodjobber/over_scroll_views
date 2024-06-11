@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-part of 'package:over_scroll_views/src/assembly/widgets/scrollable.dart';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:over_scroll_views/src/flutter/widgets/scrollable.dart';
 
 /// An auto scroller that scrolls the [scrollable] if a drag gesture drags close
 /// to its edge.
@@ -10,16 +12,16 @@ part of 'package:over_scroll_views/src/assembly/widgets/scrollable.dart';
 /// The scroll velocity is controlled by the [velocityScalar]:
 ///
 /// velocity = <distance of overscroll> * [velocityScalar].
-class EdgeDraggingAutoScroller {
+class MTEdgeDraggingAutoScroller {
   /// Creates a auto scroller that scrolls the [scrollable].
-  EdgeDraggingAutoScroller(
+  MTEdgeDraggingAutoScroller(
     this.scrollable, {
     this.onScrollViewScrolled,
     required this.velocityScalar,
   });
 
-  /// The [Scrollable] this auto scroller is scrolling.
-  final ScrollableState scrollable;
+  /// The [MTScrollable] this auto scroller is scrolling.
+  final MTScrollableState scrollable;
 
   /// Called when a scroll view is scrolled.
   ///
@@ -167,18 +169,18 @@ class EdgeDraggingAutoScroller {
 }
 
 /// A typedef for a function that can calculate the offset for a type of scroll
-/// increment given a [ScrollIncrementDetails].
+/// increment given a [MTScrollIncrementDetails].
 ///
-/// This function is used as the type for [Scrollable.incrementCalculator],
-/// which is called from a [ScrollAction].
-typedef ScrollIncrementCalculator = double Function(
-    ScrollIncrementDetails details);
+/// This function is used as the type for [MTScrollable.incrementCalculator],
+/// which is called from a [MTScrollAction].
+typedef MTScrollIncrementCalculator = double Function(
+    MTScrollIncrementDetails details);
 
 /// Describes the type of scroll increment that will be performed by a
-/// [ScrollAction] on a [Scrollable].
+/// [MTScrollAction] on a [MTScrollable].
 ///
-/// This is used to configure a [ScrollIncrementDetails] object to pass to a
-/// [ScrollIncrementCalculator] function on a [Scrollable].
+/// This is used to configure a [MTScrollIncrementDetails] object to pass to a
+/// [MTScrollIncrementCalculator] function on a [MTScrollable].
 ///
 /// {@template flutter.widgets.ScrollIncrementType.intent}
 /// This indicates the *intent* of the scroll, not necessarily the size. Not all
@@ -189,32 +191,32 @@ typedef ScrollIncrementCalculator = double Function(
 /// recommended that at least the relative magnitudes of the scrolls match
 /// expectations.
 /// {@endtemplate}
-enum ScrollIncrementType {
-  /// Indicates that the [ScrollIncrementCalculator] should return the scroll
+enum MTScrollIncrementType {
+  /// Indicates that the [MTScrollIncrementCalculator] should return the scroll
   /// distance it should move when the user requests to scroll by a "line".
   ///
   /// The distance a "line" scrolls refers to what should happen when the key
   /// binding for "scroll down/up by a line" is triggered. It's up to the
-  /// [ScrollIncrementCalculator] function to decide what that means for a
+  /// [MTScrollIncrementCalculator] function to decide what that means for a
   /// particular scrollable.
   line,
 
-  /// Indicates that the [ScrollIncrementCalculator] should return the scroll
+  /// Indicates that the [MTScrollIncrementCalculator] should return the scroll
   /// distance it should move when the user requests to scroll by a "page".
   ///
   /// The distance a "page" scrolls refers to what should happen when the key
   /// binding for "scroll down/up by a page" is triggered. It's up to the
-  /// [ScrollIncrementCalculator] function to decide what that means for a
+  /// [MTScrollIncrementCalculator] function to decide what that means for a
   /// particular scrollable.
   page,
 }
 
 /// A details object that describes the type of scroll increment being requested
-/// of a [ScrollIncrementCalculator] function, as well as the current metrics
+/// of a [MTScrollIncrementCalculator] function, as well as the current metrics
 /// for the scrollable.
-class ScrollIncrementDetails {
-  /// A const constructor for a [ScrollIncrementDetails].
-  const ScrollIncrementDetails({
+class MTScrollIncrementDetails {
+  /// A const constructor for a [MTScrollIncrementDetails].
+  const MTScrollIncrementDetails({
     required this.type,
     required this.metrics,
   });
@@ -222,7 +224,7 @@ class ScrollIncrementDetails {
   /// The type of scroll this is (e.g. line, page, etc.).
   ///
   /// {@macro flutter.widgets.ScrollIncrementType.intent}
-  final ScrollIncrementType type;
+  final MTScrollIncrementType type;
 
   /// The current metrics of the scrollable that is being scrolled.
   final ScrollMetrics metrics;
@@ -232,14 +234,14 @@ class ScrollIncrementDetails {
 /// appropriate for the [type] specified.
 ///
 /// The actual amount of the scroll is determined by the
-/// [Scrollable.incrementCalculator], or by its defaults if that is not
+/// [MTScrollable.incrementCalculator], or by its defaults if that is not
 /// specified.
-class ScrollIntent extends Intent {
-  /// Creates a const [ScrollIntent] that requests scrolling in the given
+class MTScrollIntent extends Intent {
+  /// Creates a const [MTScrollIntent] that requests scrolling in the given
   /// [direction], with the given [type].
-  const ScrollIntent({
+  const MTScrollIntent({
     required this.direction,
-    this.type = ScrollIncrementType.line,
+    this.type = MTScrollIncrementType.line,
   });
 
   /// The direction in which to scroll the scrollable containing the focused
@@ -247,27 +249,27 @@ class ScrollIntent extends Intent {
   final AxisDirection direction;
 
   /// The type of scrolling that is intended.
-  final ScrollIncrementType type;
+  final MTScrollIncrementType type;
 }
 
-/// An [Action] that scrolls the relevant [Scrollable] by the amount configured
-/// in the [ScrollIntent] given to it.
+/// An [Action] that scrolls the relevant [MTScrollable] by the amount configured
+/// in the [MTScrollIntent] given to it.
 ///
 /// If a Scrollable cannot be found above the given [BuildContext], the
 /// [PrimaryScrollController] will be considered for default handling of
-/// [ScrollAction]s.
+/// [MTScrollAction]s.
 ///
-/// If [Scrollable.incrementCalculator] is null for the scrollable, the default
-/// for a [ScrollIntent.type] set to [ScrollIncrementType.page] is 80% of the
-/// size of the scroll window, and for [ScrollIncrementType.line], 50 logical
+/// If [MTScrollable.incrementCalculator] is null for the scrollable, the default
+/// for a [MTScrollIntent.type] set to [MTScrollIncrementType.page] is 80% of the
+/// size of the scroll window, and for [MTScrollIncrementType.line], 50 logical
 /// pixels.
-class ScrollAction extends ContextAction<ScrollIntent> {
+class MTScrollAction extends ContextAction<MTScrollIntent> {
   @override
-  bool isEnabled(ScrollIntent intent, [BuildContext? context]) {
+  bool isEnabled(MTScrollIntent intent, [BuildContext? context]) {
     if (context == null) {
       return false;
     }
-    if (Scrollable.maybeOf(context) != null) {
+    if (MTScrollable.maybeOf(context) != null) {
       return true;
     }
     final ScrollController? primaryScrollController =
@@ -283,29 +285,29 @@ class ScrollAction extends ContextAction<ScrollIntent> {
   /// metrics (pixels, viewportDimension, maxScrollExtent, minScrollExtent) are
   /// null. The widget must have already been laid out so that the position
   /// fields are valid.
-  static double _calculateScrollIncrement(ScrollableState state,
-      {ScrollIncrementType type = ScrollIncrementType.line}) {
+  static double _calculateScrollIncrement(MTScrollableState state,
+      {MTScrollIncrementType type = MTScrollIncrementType.line}) {
     assert(state.position.hasPixels);
     assert(state.resolvedPhysics == null ||
         state.resolvedPhysics!.shouldAcceptUserOffset(state.position));
     if (state.widget.incrementCalculator != null) {
       return state.widget.incrementCalculator!(
-        ScrollIncrementDetails(
+        MTScrollIncrementDetails(
           type: type,
           metrics: state.position,
         ),
       );
     }
     return switch (type) {
-      ScrollIncrementType.line => 50.0,
-      ScrollIncrementType.page => 0.8 * state.position.viewportDimension,
+      MTScrollIncrementType.line => 50.0,
+      MTScrollIncrementType.page => 0.8 * state.position.viewportDimension,
     };
   }
 
   /// Find out how much of an increment to move by, taking the different
   /// directions into account.
   static double getDirectionalIncrement(
-      ScrollableState state, ScrollIntent intent) {
+      MTScrollableState state, MTScrollIntent intent) {
     if (axisDirectionToAxis(intent.direction) ==
         axisDirectionToAxis(state.axisDirection)) {
       final double increment =
@@ -316,9 +318,9 @@ class ScrollAction extends ContextAction<ScrollIntent> {
   }
 
   @override
-  void invoke(ScrollIntent intent, [BuildContext? context]) {
+  void invoke(MTScrollIntent intent, [BuildContext? context]) {
     assert(context != null, 'Cannot scroll without a context.');
-    ScrollableState? state = Scrollable.maybeOf(context!);
+    MTScrollableState? state = MTScrollable.maybeOf(context!);
     if (state == null) {
       final ScrollController primaryScrollController =
           PrimaryScrollController.of(context);
@@ -347,16 +349,16 @@ class ScrollAction extends ContextAction<ScrollIntent> {
 
       if (primaryScrollController.position.context.notificationContext ==
               null &&
-          Scrollable.maybeOf(primaryScrollController
+          MTScrollable.maybeOf(primaryScrollController
                   .position.context.notificationContext!) ==
               null) {
         return;
       }
-      state = Scrollable.maybeOf(
+      state = MTScrollable.maybeOf(
           primaryScrollController.position.context.notificationContext!);
     }
     assert(state != null,
-        '$ScrollAction was invoked on a context that has no scrollable parent');
+        '$MTScrollAction was invoked on a context that has no scrollable parent');
     assert(state!.position.hasPixels,
         'Scrollable must be laid out before it can be scrolled via a ScrollAction');
 
