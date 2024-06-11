@@ -395,21 +395,19 @@ class MTPageViewState extends State<MTPageView> {
   }
 
   @override
-  void debugFillProperties(DiagnosticPropertiesBuilder description) {
-    super.debugFillProperties(description);
-    description
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
         .add(EnumProperty<Axis>('scrollDirection', widget.scrollDirection));
-    description.add(
+    properties.add(
         FlagProperty('reverse', value: widget.reverse, ifTrue: 'reversed'));
-    description.add(DiagnosticsProperty<PageController>(
-        'controller', controller,
+    properties.add(DiagnosticsProperty<PageController>('controller', controller,
         showName: false));
-    description.add(DiagnosticsProperty<ScrollPhysics>(
-        'physics', widget.physics,
+    properties.add(DiagnosticsProperty<ScrollPhysics>('physics', widget.physics,
         showName: false));
-    description.add(FlagProperty('pageSnapping',
+    properties.add(FlagProperty('pageSnapping',
         value: widget.pageSnapping, ifFalse: 'snapping disabled'));
-    description.add(FlagProperty('allowImplicitScrolling',
+    properties.add(FlagProperty('allowImplicitScrolling',
         value: widget.allowImplicitScrolling,
         ifTrue: 'allow implicit scrolling'));
   }

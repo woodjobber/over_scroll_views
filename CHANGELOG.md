@@ -1,3 +1,6 @@
+## 0.0.4
+
+- Initial version.
 ## 0.0.3
 
 - Initial version.
